@@ -7,11 +7,12 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^5.2.1",
-    "cors": "^2.8.6",
     "cookie-parser": "^1.4.7",
-    "http-proxy-middleware": "^3.0.7",
-    "dotenv": "^17.4.2"
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "http-proxy-middleware": "^3.0.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

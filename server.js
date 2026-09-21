@@ -7,7 +7,7 @@ const helmet = require("helmet");
 
 const app = express();
 
-const PORT = process.env.GATEWAY_PORT || 5000;
+const PORT = process.env.PORT || process.env.GATEWAY_PORT || 5000;
 
 // ─── Backend service URLs (set these as env vars on Render) ──────────────────
 const USER_SERVICE_URL       = process.env.USER_SERVICE_URL       || "http://localhost:5001";

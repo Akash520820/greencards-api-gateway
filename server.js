@@ -35,92 +35,90 @@ app.get("/health", (req, res) => {
   });
 });
 
-// ─── Proxy helper (shared options) ────────────────────────────────────────────
-const proxy = (target) =>
+// ─── Proxy factory (shared options) ──────────────────────────────────────────
+const proxy = (target, label) =>
   createProxyMiddleware({
     target,
     changeOrigin: true,
-    // Forward cookies transparently so JWT auth works end-to-end
+    // Transparent cookie forwarding so JWT auth works end-to-end
     on: {
       error: (err, req, res) => {
-        console.error(`[Gateway] Proxy error → ${target}: ${err.message}`);
+        console.error(`[Gateway → ${label}] ${err.message} for ${req.method} ${req.url}`);
         res.status(502).json({
           status:  502,
           message: "Backend service is temporarily unavailable. Please try again shortly.",
+          service: label,
         });
       },
     },
   });
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  ROUTE OWNERSHIP
-//  Each route belongs to exactly ONE backend cluster.
-//  User portal calls ONE gateway URL — gateway decides which service answers.
+//  ROUTE TABLE — which portal calls which backend
+//
+//  User Portal    → USER backend + SELLER backend
+//  Seller Portal  → SELLER backend + USER backend (auth only)
+//  Admin Portal   → ADMIN backend + USER backend + SELLER backend
+//  SuperAdmin     → SUPERADMIN backend + ADMIN backend + USER backend
 // ═════════════════════════════════════════════════════════════════════════════
 
-// ─── USER BACKEND (greencard-user cluster) ────────────────────────────────────
-// Everything that belongs to the logged-in customer:
-// auth, cart, orders, wishlist, addresses, returns, contact
+// ─── USER BACKEND ─────────────────────────────────────────────────────────────
+// Callers: User Portal (main), Seller Portal (auth), Admin Portal (orders/reviews)
+// SuperAdmin Portal (platform stats)
 app.use(
   [
-    "/api/v1/users",      // register, login, profile, password reset
-    "/api/v1/addresses",  // saved delivery addresses
-    "/api/v1/cart",       // cart + /cart/validate-stock (pre-flight check)
-    "/api/v1/orders",     // place order, order history, invoice, razorpay webhook
-    "/api/v1/returns",    // return requests
-    "/api/v1/wishlist",   // wishlist add/remove
-    "/api/v1/contact",    // contact-us form
-    "/api/v1/reviews",    // user submits/reads reviews (user-backend owns review writes)
+    "/api/v1/users",           // register, login, profile — ALL portals use auth
+    "/api/v1/addresses",       // saved delivery addresses — User Portal
+    "/api/v1/cart",            // cart + /cart/validate-stock — User Portal
+    "/api/v1/orders",          // place order, order history — User Portal + Admin Portal
+    "/api/v1/returns",         // return requests — User Portal
+    "/api/v1/wishlist",        // wishlist — User Portal
+    "/api/v1/reviews",         // reviews — User Portal + Admin Portal (moderation)
+    "/api/v1/contact",         // contact form — User Portal
+    "/api/v1/access-requests", // become-seller form — User Portal; approval — Admin Portal
   ],
-  proxy(USER_SERVICE_URL)
+  proxy(USER_SERVICE_URL, "user-backend")
 );
 
-// ─── SELLER BACKEND (greencard-seller cluster) ────────────────────────────────
-// Everything the USER PORTAL reads from the seller side:
-// • product listings, search, product detail pages   → user portal reads these
-// • categories for navigation / filter sidebar       → user portal reads these
-// • coupons for checkout coupon validation           → user portal reads these
-// • site content (banners, announcements)            → user portal reads these
-// • seller dashboard, inventory management           → seller portal writes these
-// • SSE stock stream for real-time stock updates     → user portal subscribes
+// ─── SELLER BACKEND ───────────────────────────────────────────────────────────
+// Callers: User Portal (read product/category/stock), Seller Portal (CRUD),
+//          Admin Portal (products + site-content + categories management)
 app.use(
   [
-    "/api/v1/products",     // product listings, search, detail — USER PORTAL READS THIS
-    "/api/v1/categories",   // category tree for navigation — USER PORTAL READS THIS
-    "/api/v1/coupons",      // coupon validation at checkout — USER PORTAL READS THIS
-    "/api/v1/site-content", // banners, flash sale content — USER PORTAL READS THIS
-    "/api/v1/stock",        // SSE stock stream — USER PORTAL SUBSCRIBES HERE
-    "/api/v1/seller",       // seller dashboard routes (seller portal)
-    "/api/v1/sellers",      // seller profile public data
+    "/api/v1/products",     // product listings, search, detail — User Portal reads; Seller/Admin write
+    "/api/v1/categories",   // category tree — User Portal nav; Seller product form; Admin manage
+    "/api/v1/site-content", // banners, flash-sale settings — User Portal reads; Admin writes
+    "/api/v1/stock",        // SSE stock stream — User Portal subscribes (/api/v1/stock/stream)
+    "/api/v1/seller",       // seller dashboard, seller orders, seller reviews — Seller Portal
+    "/api/v1/sellers",      // seller public profile — Seller Portal
   ],
-  proxy(SELLER_SERVICE_URL)
+  proxy(SELLER_SERVICE_URL, "seller-backend")
 );
 
-// ─── ADMIN BACKEND (greencard-admin cluster) ──────────────────────────────────
-// Staff-only routes — admin portal only, never called by user/seller portals
+// ─── ADMIN BACKEND ────────────────────────────────────────────────────────────
+// Callers: Admin Portal (main), SuperAdmin Portal (staff list)
 app.use(
   [
-    "/api/v1/admin",           // admin dashboard operations
-    "/api/v1/access-requests", // seller access request management
+    "/api/v1/staff",  // staff accounts, login, permissions — Admin Portal + SuperAdmin Portal
+    "/api/v1/admin",  // admin dashboard stats, seller applications approval — Admin Portal
   ],
-  proxy(ADMIN_SERVICE_URL)
+  proxy(ADMIN_SERVICE_URL, "admin-backend")
 );
 
-// ─── SUPERADMIN BACKEND (greencard-superadmin cluster) ───────────────────────
-// Superadmin-only routes — highest privilege, audit log viewer
+// ─── SUPERADMIN BACKEND ───────────────────────────────────────────────────────
+// Caller: SuperAdmin Portal ONLY — highest privilege, append-only audit logs
 app.use(
   [
-    "/api/v1/superadmin", // superadmin dashboard
-    "/api/v1/staff",      // staff account management
+    "/api/v1/superadmin", // superadmin dashboard, audit logs, role promotion
   ],
-  proxy(SUPERADMIN_SERVICE_URL)
+  proxy(SUPERADMIN_SERVICE_URL, "superadmin-backend")
 );
 
 // ─── 404 for unknown routes ───────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     status:  404,
-    message: `Route ${req.method} ${req.originalUrl} not found in API Gateway`,
+    message: `Route ${req.method} ${req.originalUrl} does not exist in this API Gateway`,
   });
 });
 
@@ -128,10 +126,15 @@ app.use((req, res) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🌐 GreenCard API Gateway running on port ${PORT}`);
-    console.log(`   User Backend    → ${USER_SERVICE_URL}`);
-    console.log(`   Seller Backend  → ${SELLER_SERVICE_URL}`);
-    console.log(`   Admin Backend   → ${ADMIN_SERVICE_URL}`);
-    console.log(`   SuperAdmin      → ${SUPERADMIN_SERVICE_URL}`);
+    console.log(`   🟢 User Backend      → ${USER_SERVICE_URL}`);
+    console.log(`   🟠 Seller Backend    → ${SELLER_SERVICE_URL}`);
+    console.log(`   🔵 Admin Backend     → ${ADMIN_SERVICE_URL}`);
+    console.log(`   🔴 SuperAdmin Backend→ ${SUPERADMIN_SERVICE_URL}`);
+    console.log(`\n   Route Ownership:`);
+    console.log(`   /api/v1/users, cart, orders, wishlist, reviews, contact, returns, addresses, access-requests → USER`);
+    console.log(`   /api/v1/products, categories, site-content, stock, seller, sellers → SELLER`);
+    console.log(`   /api/v1/staff, admin → ADMIN`);
+    console.log(`   /api/v1/superadmin → SUPERADMIN`);
   });
 }
 

@@ -21,7 +21,7 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 
 // ─── Gateway Health Check ─────────────────────────────────────────────────────
-app.get("/health", (req, res) => {
+app.get(["/health", "/api/v1/health"], (req, res) => {
   res.status(200).json({
     status:    "ok",
     gateway:   "GreenCard API Gateway v2.0",
@@ -124,6 +124,7 @@ app.use((req, res) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 if (require.main === module) {
+  const startKeepAlive = require("./keepAlive");
   app.listen(PORT, () => {
     console.log(`🌐 GreenCard API Gateway running on port ${PORT}`);
     console.log(`   🟢 User Backend      → ${USER_SERVICE_URL}`);
@@ -135,6 +136,14 @@ if (require.main === module) {
     console.log(`   /api/v1/products, categories, site-content, stock, seller, sellers → SELLER`);
     console.log(`   /api/v1/staff, admin → ADMIN`);
     console.log(`   /api/v1/superadmin → SUPERADMIN`);
+
+    // Start mesh keep-alive pinging on Render
+    startKeepAlive({
+      user: USER_SERVICE_URL,
+      seller: SELLER_SERVICE_URL,
+      admin: ADMIN_SERVICE_URL,
+      superadmin: SUPERADMIN_SERVICE_URL,
+    });
   });
 }
 

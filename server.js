@@ -64,11 +64,11 @@ const proxy = (target, label) =>
 
 // ─── USER BACKEND ─────────────────────────────────────────────────────────────
 // Callers: User Portal (main), Seller Portal (auth), Admin Portal (orders/reviews)
-// SuperAdmin Portal (platform stats)
 app.use(
   [
     "/api/v1/users",           // register, login, profile — ALL portals use auth
     "/api/v1/addresses",       // saved delivery addresses — User Portal
+    "/api/v1/products",        // product listings, search, detail (product.routes.js in user-backend)
     "/api/v1/cart",            // cart + /cart/validate-stock — User Portal
     "/api/v1/orders",          // place order, order history — User Portal + Admin Portal
     "/api/v1/returns",         // return requests — User Portal
@@ -81,35 +81,34 @@ app.use(
 );
 
 // ─── SELLER BACKEND ───────────────────────────────────────────────────────────
-// Callers: User Portal (read product/category/stock), Seller Portal (CRUD),
-//          Admin Portal (products + site-content + categories management)
+// Callers: Seller Portal (CRUD & dashboard), User Portal (real-time stock SSE)
 app.use(
   [
-    "/api/v1/products",     // product listings, search, detail — User Portal reads; Seller/Admin write
-    "/api/v1/categories",   // category tree — User Portal nav; Seller product form; Admin manage
-    "/api/v1/site-content", // banners, flash-sale settings — User Portal reads; Admin writes
-    "/api/v1/stock",        // SSE stock stream — User Portal subscribes (/api/v1/stock/stream)
-    "/api/v1/seller",       // seller dashboard, seller orders, seller reviews — Seller Portal
-    "/api/v1/sellers",      // seller public profile — Seller Portal
+    "/api/v1/stock",   // SSE stock stream (/api/v1/stock/stream)
+    "/api/v1/seller",  // seller dashboard, seller orders, seller reviews
+    "/api/v1/sellers", // seller public profiles
   ],
   proxy(SELLER_SERVICE_URL, "seller-backend")
 );
 
 // ─── ADMIN BACKEND ────────────────────────────────────────────────────────────
-// Callers: Admin Portal (main), SuperAdmin Portal (staff list)
+// Callers: Admin Portal (dashboard, categories, coupons, site content)
 app.use(
   [
-    "/api/v1/staff",  // staff accounts, login, permissions — Admin Portal + SuperAdmin Portal
-    "/api/v1/admin",  // admin dashboard stats, seller applications approval — Admin Portal
+    "/api/v1/admin",        // admin dashboard stats, seller applications
+    "/api/v1/categories",   // category tree (category.routes.js in admin-backend)
+    "/api/v1/coupons",      // coupons (coupon.routes.js in admin-backend)
+    "/api/v1/site-content", // banners, policies (siteContent.routes.js in admin-backend)
   ],
   proxy(ADMIN_SERVICE_URL, "admin-backend")
 );
 
 // ─── SUPERADMIN BACKEND ───────────────────────────────────────────────────────
-// Caller: SuperAdmin Portal ONLY — highest privilege, append-only audit logs
+// Caller: SuperAdmin Portal (audit logs, role elevation, staff management)
 app.use(
   [
     "/api/v1/superadmin", // superadmin dashboard, audit logs, role promotion
+    "/api/v1/staff",      // staff accounts, MFA, login (staff.routes.js in superadmin-backend)
   ],
   proxy(SUPERADMIN_SERVICE_URL, "superadmin-backend")
 );

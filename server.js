@@ -36,10 +36,11 @@ app.get(["/health", "/api/v1/health"], (req, res) => {
 });
 
 // ─── Proxy factory (shared options) ──────────────────────────────────────────
-const proxy = (target, label) =>
+const proxy = (target, label, pathFilter) =>
   createProxyMiddleware({
     target,
     changeOrigin: true,
+    pathFilter,
     // Transparent cookie forwarding so JWT auth works end-to-end
     on: {
       error: (err, req, res) => {
@@ -65,7 +66,7 @@ const proxy = (target, label) =>
 // ─── USER BACKEND ─────────────────────────────────────────────────────────────
 // Callers: User Portal (main), Seller Portal (auth), Admin Portal (orders/reviews)
 app.use(
-  [
+  proxy(USER_SERVICE_URL, "user-backend", [
     "/api/v1/users",           // register, login, profile — ALL portals use auth
     "/api/v1/addresses",       // saved delivery addresses — User Portal
     "/api/v1/products",        // product listings, search, detail (product.routes.js in user-backend)
@@ -76,41 +77,37 @@ app.use(
     "/api/v1/reviews",         // reviews — User Portal + Admin Portal (moderation)
     "/api/v1/contact",         // contact form — User Portal
     "/api/v1/access-requests", // become-seller form — User Portal; approval — Admin Portal
-  ],
-  proxy(USER_SERVICE_URL, "user-backend")
+  ])
 );
 
 // ─── SELLER BACKEND ───────────────────────────────────────────────────────────
 // Callers: Seller Portal (CRUD & dashboard), User Portal (real-time stock SSE)
 app.use(
-  [
+  proxy(SELLER_SERVICE_URL, "seller-backend", [
     "/api/v1/stock",   // SSE stock stream (/api/v1/stock/stream)
     "/api/v1/seller",  // seller dashboard, seller orders, seller reviews
     "/api/v1/sellers", // seller public profiles
-  ],
-  proxy(SELLER_SERVICE_URL, "seller-backend")
+  ])
 );
 
 // ─── ADMIN BACKEND ────────────────────────────────────────────────────────────
 // Callers: Admin Portal (dashboard, categories, coupons, site content)
 app.use(
-  [
+  proxy(ADMIN_SERVICE_URL, "admin-backend", [
     "/api/v1/admin",        // admin dashboard stats, seller applications
     "/api/v1/categories",   // category tree (category.routes.js in admin-backend)
     "/api/v1/coupons",      // coupons (coupon.routes.js in admin-backend)
     "/api/v1/site-content", // banners, policies (siteContent.routes.js in admin-backend)
-  ],
-  proxy(ADMIN_SERVICE_URL, "admin-backend")
+  ])
 );
 
 // ─── SUPERADMIN BACKEND ───────────────────────────────────────────────────────
 // Caller: SuperAdmin Portal (audit logs, role elevation, staff management)
 app.use(
-  [
+  proxy(SUPERADMIN_SERVICE_URL, "superadmin-backend", [
     "/api/v1/superadmin", // superadmin dashboard, audit logs, role promotion
     "/api/v1/staff",      // staff accounts, MFA, login (staff.routes.js in superadmin-backend)
-  ],
-  proxy(SUPERADMIN_SERVICE_URL, "superadmin-backend")
+  ])
 );
 
 // ─── 404 for unknown routes ───────────────────────────────────────────────────

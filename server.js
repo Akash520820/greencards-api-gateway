@@ -24,7 +24,7 @@ app.use(cookieParser());
 app.get(["/health", "/api/v1/health"], (req, res) => {
   res.status(200).json({
     status:    "ok",
-    gateway:   "GreenCard API Gateway v2.0",
+    gateway:   "GreenCard API Gateway v2.1",
     timestamp: new Date().toISOString(),
     routing: {
       "user-backend":       USER_SERVICE_URL,

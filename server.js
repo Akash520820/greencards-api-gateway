@@ -7,17 +7,52 @@ const helmet = require("helmet");
 
 const app = express();
 
+// ─── Fail-fast: required env vars ────────────────────────────────────────────
+const REQUIRED_ENV_VARS = [
+  "USER_SERVICE_URL",
+  "SELLER_SERVICE_URL",
+  "ADMIN_SERVICE_URL",
+  "SUPERADMIN_SERVICE_URL",
+];
+const missing = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
+if (missing.length > 0) {
+  console.error(`[api-gateway] Missing required environment variables: ${missing.join(", ")}`);
+  console.error("Set them in your Render Dashboard under Environment.");
+  process.exit(1);
+}
+
 const PORT = process.env.PORT || process.env.GATEWAY_PORT || 5000;
 
 // ─── Backend service URLs (set these as env vars on Render) ──────────────────
-const USER_SERVICE_URL       = process.env.USER_SERVICE_URL       || "http://localhost:5001";
-const SELLER_SERVICE_URL     = process.env.SELLER_SERVICE_URL     || "http://localhost:5002";
-const ADMIN_SERVICE_URL      = process.env.ADMIN_SERVICE_URL      || "http://localhost:5003";
-const SUPERADMIN_SERVICE_URL = process.env.SUPERADMIN_SERVICE_URL || "http://localhost:5004";
+const USER_SERVICE_URL       = process.env.USER_SERVICE_URL;
+const SELLER_SERVICE_URL     = process.env.SELLER_SERVICE_URL;
+const ADMIN_SERVICE_URL      = process.env.ADMIN_SERVICE_URL;
+const SUPERADMIN_SERVICE_URL = process.env.SUPERADMIN_SERVICE_URL;
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+// ─── CORS allowlist ───────────────────────────────────────────────────────────
+// FRONTEND_ORIGINS: comma-separated list of allowed origins (set on Render).
+// Example: https://akash520820.github.io,http://localhost:5173
+const ALLOWED_ORIGINS = (
+  process.env.FRONTEND_ORIGINS || "http://localhost:5173,http://localhost:3000"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use(cors({ origin: true, credentials: true }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server calls (no Origin header) and listed origins
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin '${origin}' not allowed`));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 
 // ─── Gateway Health Check ─────────────────────────────────────────────────────

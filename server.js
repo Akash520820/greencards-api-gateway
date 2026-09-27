@@ -102,16 +102,16 @@ const proxy = (target, label, pathFilter) =>
 // Callers: User Portal (main), Seller Portal (auth), Admin Portal (orders/reviews)
 app.use(
   proxy(USER_SERVICE_URL, "user-backend", [
-    "/api/v1/users",           // register, login, profile — ALL portals use auth
-    "/api/v1/addresses",       // saved delivery addresses — User Portal
-    "/api/v1/products",        // product listings, search, detail (product.routes.js in user-backend)
-    "/api/v1/cart",            // cart + /cart/validate-stock — User Portal
-    "/api/v1/orders",          // place order, order history — User Portal + Admin Portal
-    "/api/v1/returns",         // return requests — User Portal
-    "/api/v1/wishlist",        // wishlist — User Portal
-    "/api/v1/reviews",         // reviews — User Portal + Admin Portal (moderation)
-    "/api/v1/contact",         // contact form — User Portal
-    "/api/v1/access-requests", // become-seller form — User Portal; approval — Admin Portal
+    "/api/v1/users",       // register, login, profile — ALL portals use auth
+    "/api/v1/addresses",   // saved delivery addresses — User Portal
+    "/api/v1/products",    // product listings, search, detail
+    "/api/v1/cart",        // cart + /cart/validate-stock — User Portal
+    "/api/v1/orders",      // place order, order history — User Portal + Admin Portal
+    "/api/v1/returns",     // return requests — User Portal
+    "/api/v1/wishlist",    // wishlist — User Portal
+    "/api/v1/reviews",     // reviews — User Portal + Admin Portal (moderation)
+    "/api/v1/contact",     // contact form — User Portal
+    // NOTE: become-a-seller flow is POST /api/v1/seller/apply on seller-backend, not here
   ])
 );
 

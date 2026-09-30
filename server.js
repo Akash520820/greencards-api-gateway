@@ -163,10 +163,10 @@ if (require.main === module) {
     console.log(`   🔵 Admin Backend     → ${ADMIN_SERVICE_URL}`);
     console.log(`   🔴 SuperAdmin Backend→ ${SUPERADMIN_SERVICE_URL}`);
     console.log(`\n   Route Ownership:`);
-    console.log(`   /api/v1/users, cart, orders, wishlist, reviews, contact, returns, addresses, access-requests → USER`);
-    console.log(`   /api/v1/products, categories, site-content, stock, seller, sellers → SELLER`);
-    console.log(`   /api/v1/staff, admin → ADMIN`);
-    console.log(`   /api/v1/superadmin → SUPERADMIN`);
+    console.log(`   /api/v1/users, addresses, products, cart, orders, returns, wishlist, reviews, contact → USER`);
+    console.log(`   /api/v1/stock, seller, sellers → SELLER`);
+    console.log(`   /api/v1/admin, categories, coupons, site-content → ADMIN`);
+    console.log(`   /api/v1/staff, superadmin → SUPERADMIN`);
 
     // Start mesh keep-alive pinging on Render
     startKeepAlive({

@@ -33,7 +33,8 @@ const SUPERADMIN_SERVICE_URL = process.env.SUPERADMIN_SERVICE_URL;
 // FRONTEND_ORIGINS: comma-separated list of allowed origins (set on Render).
 // Example: https://akash520820.github.io,http://localhost:5173
 const ALLOWED_ORIGINS = (
-  process.env.FRONTEND_ORIGINS || "http://localhost:5173,http://localhost:3000"
+  process.env.FRONTEND_ORIGINS ||
+  "https://akash520820.github.io,http://localhost:5173,http://localhost:3000"
 )
   .split(",")
   .map((o) => o.trim())
@@ -43,8 +44,13 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow server-to-server calls (no Origin header) and listed origins
-      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      // Allow server-to-server calls (no Origin header), listed origins, and *.github.io
+      if (
+        !origin ||
+        ALLOWED_ORIGINS.includes(origin) ||
+        ALLOWED_ORIGINS.includes(origin.replace(/\/$/, "")) ||
+        origin.endsWith(".github.io")
+      ) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin '${origin}' not allowed`));

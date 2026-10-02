@@ -84,6 +84,12 @@ const proxy = (target, label, pathFilter) =>
     pathFilter,
     // Transparent cookie forwarding so JWT auth works end-to-end
     on: {
+      proxyReq: (proxyReq) => {
+        // The Gateway has already validated the browser origin and attached CORS headers.
+        // Stripping origin for downstream requests ensures internal microservices treat
+        // this as an internal server-to-server call and never reject it with duplicate CORS checks.
+        proxyReq.removeHeader("origin");
+      },
       error: (err, req, res) => {
         console.error(`[Gateway → ${label}] ${err.message} for ${req.method} ${req.url}`);
         res.status(502).json({
@@ -139,6 +145,7 @@ app.use(
     "/api/v1/categories",   // category tree (category.routes.js in admin-backend)
     "/api/v1/coupons",      // coupons (coupon.routes.js in admin-backend)
     "/api/v1/site-content", // banners, policies (siteContent.routes.js in admin-backend)
+    "/api/v1/site_content", // alias with underscore
   ])
 );
 

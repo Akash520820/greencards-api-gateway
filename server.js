@@ -44,12 +44,11 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow server-to-server calls (no Origin header), listed origins, and *.github.io
+      // Allow server-to-server calls (no Origin header) and listed origins
       if (
         !origin ||
         ALLOWED_ORIGINS.includes(origin) ||
-        ALLOWED_ORIGINS.includes(origin.replace(/\/$/, "")) ||
-        origin.endsWith(".github.io")
+        ALLOWED_ORIGINS.includes(origin.replace(/\/$/, ""))
       ) {
         callback(null, true);
       } else {

@@ -4,7 +4,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "node --watch server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
@@ -12,9 +13,6 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
-    "http-proxy-middleware": "^3.0.7"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
+    "http-proxy": "^1.18.1"
   }
 }

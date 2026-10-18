@@ -1,6 +1,6 @@
 require("dotenv").config();
 const express = require("express");
-const { createProxyMiddleware } = require("http-proxy-middleware");
+const httpProxy = require("http-proxy");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
@@ -76,29 +76,30 @@ app.get(["/health", "/api/v1/health"], (req, res) => {
 });
 
 // ─── Proxy factory (shared options) ──────────────────────────────────────────
-const proxy = (target, label, pathFilter) =>
-  createProxyMiddleware({
-    target,
-    changeOrigin: true,
-    pathFilter,
-    // Transparent cookie forwarding so JWT auth works end-to-end
-    on: {
-      proxyReq: (proxyReq) => {
-        // The Gateway has already validated the browser origin and attached CORS headers.
-        // Stripping origin for downstream requests ensures internal microservices treat
-        // this as an internal server-to-server call and never reject it with duplicate CORS checks.
-        proxyReq.removeHeader("origin");
-      },
-      error: (err, req, res) => {
-        console.error(`[Gateway → ${label}] ${err.message} for ${req.method} ${req.url}`);
-        res.status(502).json({
-          status:  502,
-          message: "Backend service is temporarily unavailable. Please try again shortly.",
-          service: label,
-        });
-      },
-    },
-  });
+const proxy = (target, label, pathPrefixes) => {
+  const server = httpProxy.createProxyServer({ target, changeOrigin: true });
+
+  // The Gateway has already validated the browser origin and attached CORS headers.
+  // Stripping origin for downstream requests ensures internal microservices treat
+  // this as an internal server-to-server call and never reject it with duplicate CORS checks.
+  server.on("proxyReq", (proxyReq) => proxyReq.removeHeader("origin"));
+
+  return (req, res, next) => {
+    const pathname = (req.originalUrl || req.url).split("?")[0];
+    if (!pathPrefixes.some((prefix) => pathname.startsWith(prefix))) return next();
+
+    // Cookies, method, body and query string are forwarded untouched.
+    server.web(req, res, {}, (err) => {
+      console.error(`[Gateway → ${label}] ${err.message} for ${req.method} ${req.url}`);
+      if (res.headersSent) return res.end();
+      res.status(502).json({
+        status:  502,
+        message: "Backend service is temporarily unavailable. Please try again shortly.",
+        service: label,
+      });
+    });
+  };
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  ROUTE TABLE — which portal calls which backend
